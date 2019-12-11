@@ -1,0 +1,51 @@
+{
+  "name": "san-md-loader",
+  "version": "1.0.0",
+  "description": "💥Convert markdown file to SAN component.",
+  "main": "dist/san-md-loader.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "webpack-dev-server --config webpack.config.js",
+    "build": "rollup -c rollup.config.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/helianthuswhite/san-md-loader.git"
+  },
+  "keywords": [
+    "markdown",
+    "san",
+    "loader"
+  ],
+  "author": "helianthuswhite",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/helianthuswhite/san-md-loader/issues"
+  },
+  "homepage": "https://github.com/helianthuswhite/san-md-loader#readme",
+  "devDependencies": {
+    "@babel/core": "^7.7.5",
+    "@babel/preset-env": "^7.7.6",
+    "babel-loader": "^8.0.6",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-import": "^2.19.1",
+    "html-loader": "^0.5.5",
+    "html-webpack-plugin": "^3.2.0",
+    "markdown-it-container": "^2.0.0",
+    "rollup": "^1.27.9",
+    "rollup-plugin-auto-external": "^2.0.0",
+    "rollup-plugin-babel": "^4.3.3",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-eslint": "^7.0.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.10",
+    "webpack-dev-server": "^3.9.0"
+  },
+  "peerDependencies": {
+    "highlight.js": "^9.16.2",
+    "loader-utils": "^1.2.3",
+    "markdown-it": "^10.0.0",
+    "san": "^3.7.9"
+  }
+}
