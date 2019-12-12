@@ -5,6 +5,10 @@ export default class Parser {
     constructor(options) {
         this.options = {
             preset: 'default',
+            esModule: true,
+            html: true,
+            tagOpen: '```san',
+            tagClose: '```',
             highlight(str, lang) {
                 if (lang && hljs.getLanguage(lang)) {
                     try {
@@ -26,13 +30,26 @@ export default class Parser {
         const plugins = this.options.plugins || [];
         delete this.options.plugins;
 
+        const {components, content, requires} = this.getSanComponent(source);
+
         const md = markdown(this.options.preset, this.options);
         plugins.forEach((plugin) => (Array.isArray(plugin) ? md.use(...plugin) : md.use(plugin)));
+
         const sanTemplate = `
             <template>
-                <san-component class="${this.options.templateClass || ''}">${md.render(source)}</san-component>
+                <san-component class="${this.options.templateClass || ''}">${md.render(content)}</san-component>
             </template>
         `;
+
+        const sanComponents = components
+            .map((item, index) => item.replace('export default', `const sanComponent${index} =`))
+            .join('');
+
+        const childComponents = components
+            .map((item, index) => `'san-component-${index}': sanComponent${index}`)
+            .join(',');
+
+        const importModules = this.getImportModules(requires);
 
         const exportMethod = this.options.esModule ? 'export default' : 'module.exports=';
 
@@ -40,10 +57,96 @@ export default class Parser {
             return `${exportMethod} {template:${JSON.stringify(sanTemplate)}}`;
         }
 
-        const sanImport = this.options.esModule ? 'import san from "san";' : 'var san = require("san");';
         return `
-            ${sanImport}
-            ${exportMethod} san.defineComponent({template:${JSON.stringify(sanTemplate)}});
+            ${importModules}
+            ${sanComponents}
+            ${exportMethod} san.defineComponent({
+                template: ${JSON.stringify(sanTemplate)},
+                components: {
+                    ${childComponents}
+                }
+            });
         `;
+    }
+
+    getSanComponent(source) {
+        const reg = new RegExp(`${this.options.tagOpen}([\\s\\S]+?)${this.options.tagClose}`);
+        let content = source;
+        let matchResult = reg.exec(content);
+        let componentId = 0;
+        const sanBlock = [];
+
+        while (matchResult) {
+            sanBlock.push(matchResult[1] ? matchResult[1].trim() : '');
+            content = content.replace(reg, `<san-component-${componentId} />`);
+            componentId++;
+            matchResult = reg.exec(content);
+        }
+
+        const requires = {};
+        const importReg = new RegExp("import([\\s\\S]+?)from '([\\s\\S]+?)'");
+
+        const components = sanBlock.map((item) => {
+            let matches = importReg.exec(item);
+            let tmpStr = item;
+
+            while (matches) {
+                if (requires[matches[2]]) {
+                    requires[matches[2]].push(matches[1].trim());
+                } else {
+                    requires[matches[2]] = [matches[1].trim()];
+                }
+                tmpStr = tmpStr.replace(importReg, '');
+                matches = importReg.exec(tmpStr);
+            }
+
+            return tmpStr;
+        });
+
+        for (const key in requires) {
+            if ({}.hasOwnProperty.call(requires, key)) {
+                const tmpArray = Array.from(new Set(requires[key]));
+                requires[key] = {single: '', multi: []};
+                tmpArray.forEach((item) => {
+                    const tmpMatches = item.match(/{([\s\S]+?)}/);
+                    if (tmpMatches) {
+                        const variables = tmpMatches[1].indexOf(',')
+                            ? tmpMatches[1].trim().split(',')
+                            : [tmpMatches[1].trim()];
+                        requires[key].multi.push(...variables);
+                    } else {
+                        requires[key].single = item.trim();
+                    }
+                });
+                requires[key].multi = requires[key].multi.map((item) => item.trim());
+                requires[key].multi = Array.from(new Set(requires[key].multi));
+            }
+        }
+
+        return {components, content, requires};
+    }
+
+    getImportModules(requires) {
+        let importModules = '';
+
+        if (!{}.hasOwnProperty.call(requires, 'san') || requires.san.single !== 'san') {
+            importModules += this.options.esModule ? 'import san from "san";' : 'var san = require("san");';
+        }
+
+        for (const key in requires) {
+            if ({}.hasOwnProperty.call(requires, key)) {
+                if (requires[key].single) {
+                    importModules += `
+                        import ${requires[key].single} from '${key}';
+                    `;
+                }
+                if (requires[key].multi) {
+                    importModules += `
+                        import {${requires[key].multi.join(',')}} from '${key}';
+                    `;
+                }
+            }
+        }
+        return importModules;
     }
 }

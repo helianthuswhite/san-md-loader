@@ -1,5 +1,4 @@
 const path = require('path');
-const mdContainer = require('markdown-it-container');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 const port = process.env.PORT || 4001;
@@ -11,27 +10,13 @@ exports = module.exports = {
             {
                 test: /\.md$/,
                 use: [
-                    {
-                        loader: 'san-md-loader',
-                        options: {
-                            plugins: [
-                                [mdContainer, 'demo', {
-                                    validate: params => /^demo\s+(.*)$/.test(params.trim()),
-                                    render: (tokens, idx) => {
-                                        var m = tokens[idx].info.trim().match(/^demo\s+(.*)$/);
-                                        if (tokens[idx].nesting === 1) {
-                                            // opening tag
-                                            return `<details><summary>${m[1]}</summary>\n`;
-                                        } else {
-                                            // closing tag
-                                            return '</details>\n';
-                                        }
-                                    }
-                                }]
-                            ]
-                        }
-                    }
+                    // {loader: 'raw-loader'},
+                    {loader: 'san-md-loader'}
                 ]
+            },
+            {
+                test: /\.css$/,
+                use: ['style-loader', 'css-loader']
             },
             {
                 test: /\.js$/,

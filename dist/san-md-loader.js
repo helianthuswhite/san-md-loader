@@ -105,6 +105,10 @@ function () {
 
     this.options = _objectSpread2({
       preset: 'default',
+      esModule: true,
+      html: true,
+      tagOpen: '```san',
+      tagClose: '```',
       highlight: function highlight(str, lang) {
         if (lang && hljs.getLanguage(lang)) {
           try {
@@ -126,19 +130,127 @@ function () {
     value: function parse(source) {
       var plugins = this.options.plugins || [];
       delete this.options.plugins;
+
+      var _this$getSanComponent = this.getSanComponent(source),
+          components = _this$getSanComponent.components,
+          content = _this$getSanComponent.content,
+          requires = _this$getSanComponent.requires;
+
       var md = markdown(this.options.preset, this.options);
       plugins.forEach(function (plugin) {
         return Array.isArray(plugin) ? md.use.apply(md, _toConsumableArray(plugin)) : md.use(plugin);
       });
-      var sanTemplate = "\n            <template>\n                <san-component class=\"".concat(this.options.templateClass || '', "\">").concat(md.render(source), "</san-component>\n            </template>\n        ");
+      var sanTemplate = "\n            <template>\n                <san-component class=\"".concat(this.options.templateClass || '', "\">").concat(md.render(content), "</san-component>\n            </template>\n        ");
+      var sanComponents = components.map(function (item, index) {
+        return item.replace('export default', "const sanComponent".concat(index, " ="));
+      }).join('');
+      var childComponents = components.map(function (item, index) {
+        return "'san-component-".concat(index, "': sanComponent").concat(index);
+      }).join(',');
+      var importModules = this.getImportModules(requires);
       var exportMethod = this.options.esModule ? 'export default' : 'module.exports=';
 
       if (this.options.raw) {
         return "".concat(exportMethod, " {template:").concat(JSON.stringify(sanTemplate), "}");
       }
 
-      var sanImport = this.options.esModule ? 'import san from "san";' : 'var san = require("san");';
-      return "\n            ".concat(sanImport, "\n            ").concat(exportMethod, " san.defineComponent({template:").concat(JSON.stringify(sanTemplate), "});\n        ");
+      return "\n            ".concat(importModules, "\n            ").concat(sanComponents, "\n            ").concat(exportMethod, " san.defineComponent({\n                template: ").concat(JSON.stringify(sanTemplate), ",\n                components: {\n                    ").concat(childComponents, "\n                }\n            });\n        ");
+    }
+  }, {
+    key: "getSanComponent",
+    value: function getSanComponent(source) {
+      var reg = new RegExp("".concat(this.options.tagOpen, "([\\s\\S]+?)").concat(this.options.tagClose));
+      var content = source;
+      var matchResult = reg.exec(content);
+      var componentId = 0;
+      var sanBlock = [];
+
+      while (matchResult) {
+        sanBlock.push(matchResult[1] ? matchResult[1].trim() : '');
+        content = content.replace(reg, "<san-component-".concat(componentId, " />"));
+        componentId++;
+        matchResult = reg.exec(content);
+      }
+
+      var requires = {};
+      var importReg = new RegExp("import([\\s\\S]+?)from '([\\s\\S]+?)'");
+      var components = sanBlock.map(function (item) {
+        var matches = importReg.exec(item);
+        var tmpStr = item;
+
+        while (matches) {
+          if (requires[matches[2]]) {
+            requires[matches[2]].push(matches[1].trim());
+          } else {
+            requires[matches[2]] = [matches[1].trim()];
+          }
+
+          tmpStr = tmpStr.replace(importReg, '');
+          matches = importReg.exec(tmpStr);
+        }
+
+        return tmpStr;
+      });
+
+      var _loop = function _loop(key) {
+        if ({}.hasOwnProperty.call(requires, key)) {
+          var tmpArray = Array.from(new Set(requires[key]));
+          requires[key] = {
+            single: '',
+            multi: []
+          };
+          tmpArray.forEach(function (item) {
+            var tmpMatches = item.match(/{([\s\S]+?)}/);
+
+            if (tmpMatches) {
+              var _requires$key$multi;
+
+              var variables = tmpMatches[1].indexOf(',') ? tmpMatches[1].trim().split(',') : [tmpMatches[1].trim()];
+
+              (_requires$key$multi = requires[key].multi).push.apply(_requires$key$multi, _toConsumableArray(variables));
+            } else {
+              requires[key].single = item.trim();
+            }
+          });
+          requires[key].multi = requires[key].multi.map(function (item) {
+            return item.trim();
+          });
+          requires[key].multi = Array.from(new Set(requires[key].multi));
+        }
+      };
+
+      for (var key in requires) {
+        _loop(key);
+      }
+
+      return {
+        components: components,
+        content: content,
+        requires: requires
+      };
+    }
+  }, {
+    key: "getImportModules",
+    value: function getImportModules(requires) {
+      var importModules = '';
+
+      if (!{}.hasOwnProperty.call(requires, 'san') || requires.san.single !== 'san') {
+        importModules += this.options.esModule ? 'import san from "san";' : 'var san = require("san");';
+      }
+
+      for (var key in requires) {
+        if ({}.hasOwnProperty.call(requires, key)) {
+          if (requires[key].single) {
+            importModules += "\n                        import ".concat(requires[key].single, " from '").concat(key, "';\n                    ");
+          }
+
+          if (requires[key].multi) {
+            importModules += "\n                        import {".concat(requires[key].multi.join(','), "} from '").concat(key, "';\n                    ");
+          }
+        }
+      }
+
+      return importModules;
     }
   }]);
 
