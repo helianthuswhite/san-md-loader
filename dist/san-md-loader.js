@@ -147,6 +147,9 @@ function () {
       var childComponents = components.map(function (item, index) {
         return "'san-component-".concat(index, "': sanComponent").concat(index);
       }).join(',');
+      var rawChildren = components.map(function (item) {
+        return JSON.stringify(item).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+      });
       var importModules = this.getImportModules(requires);
       var exportMethod = this.options.esModule ? 'export default' : 'module.exports=';
 
@@ -154,7 +157,7 @@ function () {
         return "".concat(exportMethod, " {template:").concat(JSON.stringify(sanTemplate), "}");
       }
 
-      return "\n            ".concat(importModules, "\n            ").concat(sanComponents, "\n            ").concat(exportMethod, " san.defineComponent({\n                template: ").concat(JSON.stringify(sanTemplate), ",\n                components: {\n                    ").concat(childComponents, "\n                }\n            });\n        ");
+      return "\n            ".concat(importModules, "\n            ").concat(sanComponents, "\n            ").concat(exportMethod, " san.defineComponent({\n                template: ").concat(JSON.stringify(sanTemplate), ",\n                rawChildren: [").concat(rawChildren, "],\n                components: {\n                    ").concat(childComponents, "\n                }\n            });\n        ");
     }
   }, {
     key: "getSanComponent",
@@ -167,13 +170,14 @@ function () {
 
       while (matchResult) {
         sanBlock.push(matchResult[1] ? matchResult[1].trim() : '');
-        content = content.replace(reg, "<san-component-".concat(componentId, " />"));
+        var replacedStr = "<san-component-".concat(componentId, "  class=\"san-child-component componet").concat(componentId, "\" />");
+        content = content.replace(reg, replacedStr);
         componentId++;
         matchResult = reg.exec(content);
       }
 
       var requires = {};
-      var importReg = new RegExp("import([\\s\\S]+?)from '([\\s\\S]+?)'");
+      var importReg = new RegExp("import([\\s\\S]+?)from '([\\s\\S]+?)'(;?)");
       var components = sanBlock.map(function (item) {
         var matches = importReg.exec(item);
         var tmpStr = item;

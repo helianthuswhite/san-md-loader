@@ -49,6 +49,10 @@ export default class Parser {
             .map((item, index) => `'san-component-${index}': sanComponent${index}`)
             .join(',');
 
+        const rawChildren = components.map((item) => JSON.stringify(item)
+            .replace(/\u2028/g, '\\u2028')
+            .replace(/\u2029/g, '\\u2029'));
+
         const importModules = this.getImportModules(requires);
 
         const exportMethod = this.options.esModule ? 'export default' : 'module.exports=';
@@ -62,6 +66,7 @@ export default class Parser {
             ${sanComponents}
             ${exportMethod} san.defineComponent({
                 template: ${JSON.stringify(sanTemplate)},
+                rawChildren: [${rawChildren}],
                 components: {
                     ${childComponents}
                 }
@@ -78,13 +83,14 @@ export default class Parser {
 
         while (matchResult) {
             sanBlock.push(matchResult[1] ? matchResult[1].trim() : '');
-            content = content.replace(reg, `<san-component-${componentId} />`);
+            const replacedStr = `<san-component-${componentId}  class="san-child-component componet${componentId}" />`;
+            content = content.replace(reg, replacedStr);
             componentId++;
             matchResult = reg.exec(content);
         }
 
         const requires = {};
-        const importReg = new RegExp("import([\\s\\S]+?)from '([\\s\\S]+?)'");
+        const importReg = new RegExp("import([\\s\\S]+?)from '([\\s\\S]+?)'(;?)");
 
         const components = sanBlock.map((item) => {
             let matches = importReg.exec(item);
