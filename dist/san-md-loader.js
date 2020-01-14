@@ -134,7 +134,8 @@ function () {
       var _this$getSanComponent = this.getSanComponent(source),
           components = _this$getSanComponent.components,
           content = _this$getSanComponent.content,
-          requires = _this$getSanComponent.requires;
+          requires = _this$getSanComponent.requires,
+          sanBlock = _this$getSanComponent.sanBlock;
 
       var md = markdown(this.options.preset, this.options);
       plugins.forEach(function (plugin) {
@@ -147,7 +148,7 @@ function () {
       var childComponents = components.map(function (item, index) {
         return "'san-component-".concat(index, "': sanComponent").concat(index);
       }).join(',');
-      var rawChildren = components.map(function (item) {
+      var rawChildren = sanBlock.map(function (item) {
         return JSON.stringify(item).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
       });
       var importModules = this.getImportModules(requires);
@@ -230,7 +231,8 @@ function () {
       return {
         components: components,
         content: content,
-        requires: requires
+        requires: requires,
+        sanBlock: sanBlock
       };
     }
   }, {

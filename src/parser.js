@@ -30,7 +30,12 @@ export default class Parser {
         const plugins = this.options.plugins || [];
         delete this.options.plugins;
 
-        const {components, content, requires} = this.getSanComponent(source);
+        const {
+            components,
+            content,
+            requires,
+            sanBlock
+        } = this.getSanComponent(source);
 
         const md = markdown(this.options.preset, this.options);
         plugins.forEach((plugin) => (Array.isArray(plugin) ? md.use(...plugin) : md.use(plugin)));
@@ -49,7 +54,7 @@ export default class Parser {
             .map((item, index) => `'san-component-${index}': sanComponent${index}`)
             .join(',');
 
-        const rawChildren = components.map((item) => JSON.stringify(item)
+        const rawChildren = sanBlock.map((item) => JSON.stringify(item)
             .replace(/\u2028/g, '\\u2028')
             .replace(/\u2029/g, '\\u2029'));
 
@@ -129,7 +134,12 @@ export default class Parser {
             }
         }
 
-        return {components, content, requires};
+        return {
+            components,
+            content,
+            requires,
+            sanBlock
+        };
     }
 
     getImportModules(requires) {
